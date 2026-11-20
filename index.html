@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#080c19">
+  <meta name="description" content="Tu Polla semanal de quiniela: 10 números, 20 premios y un tablero personal con aciertos por día.">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./assets/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+  <title>Mi Polla · La nocturna</title>
+</head>
+<body>
+<div class="ambient ambient-a"></div><div class="ambient ambient-b"></div>
+<div id="app" class="app-shell">
+  <header class="hero">
+    <div class="hero-mark" aria-hidden="true">
+      <span class="ball ball-g">24</span><span class="ball ball-c">37</span><span class="ball ball-p">89</span>
+    </div>
+    <div class="hero-copy"><p class="overline">QUINIELA · CIUDAD NOCTURNA</p>
+      <h1>MI <span>POLLA</span></h1><p class="hero-sub">Tus números. Tu semana. Tu tablero.</p>
+    </div>
+    <button class="icon-btn" id="open-settings" aria-label="Ajustes y respaldo" title="Ajustes">⚙</button>
+  </header>
+
+  <main>
+    <section id="view-tablero" class="page">
+      <section class="week-bar surface">
+        <button id="week-prev" class="nav-arrow" aria-label="Semana anterior">‹</button>
+        <div><span class="eyebrow">SEMANA EN JUEGO</span><h2 id="week-title">—</h2><span id="week-subtitle" class="subtle">Lunes a viernes</span></div>
+        <button id="week-next" class="nav-arrow" aria-label="Semana siguiente">›</button>
+      </section>
+      <section class="personal surface">
+        <div class="personal-head">
+          <div><p class="eyebrow">MI JUGADA</p><h2 id="player-title">Mi Polla</h2></div>
+          <span id="status-pill" class="status-pill">Sin cargar</span>
+        </div>
+        <div id="my-numbers" class="picks-grid" aria-live="polite"></div>
+        <div class="score-line">
+          <div><span class="tiny-label">ACERTADOS</span><strong id="hit-count">0 <small>/ 10</small></strong></div>
+          <div class="score-progress"><div id="progress-bar"></div></div>
+          <span id="hit-percent" class="score-percent">0%</span>
+        </div>
+        <div class="minor-row">
+          <span id="pending-text">Cargá tus 10 números para empezar</span>
+          <button class="btn btn-primary" id="edit-picks">+ Elegir mis 10</button>
+        </div>
+      </section>
+      <section class="board-section surface">
+        <div class="section-heading"><div><p class="eyebrow">DEL 00 AL 99</p><h2>Tablero semanal</h2></div>
+          <span class="live-dot" id="draw-count">0/5 noches</span></div>
+        <div id="number-board" class="number-board" role="grid" aria-label="Números de quiniela del 00 al 99"></div>
+        <div class="legend">
+          <span><i style="--legend:var(--mon)"></i>Lun</span><span><i style="--legend:var(--tue)"></i>Mar</span>
+          <span><i style="--legend:var(--wed)"></i>Mié</span><span><i style="--legend:var(--thu)"></i>Jue</span>
+          <span><i style="--legend:var(--fri)"></i>Vie</span>
+        </div>
+        <p class="board-note"><span class="key-ring"></span> Borde brillante: tu número acertado. <span class="key-pending"></span> Borde violeta: pendiente.</p>
+      </section>
+      <section class="draw-section surface">
+        <div class="section-heading"><div><p class="eyebrow">20 PREMIOS POR NOCHE</p><h2>Resultados de Ciudad</h2></div>
+          <button id="refresh-results" class="btn btn-secondary btn-small">↻ Actualizar</button></div>
+        <div id="source-note" class="data-note">Consultando resultados…</div>
+        <div id="draw-day-tabs" class="day-tabs"></div>
+        <div id="draw-detail" class="draw-detail"></div>
+        <div class="draw-actions">
+          <button class="link-action" id="manual-result">+ Cargar premios manualmente</button>
+        </div>
+      </section>
+      <section class="changes-section surface">
+        <div class="section-heading"><div><p class="eyebrow">SIN RETROACTIVIDAD</p><h2>Cambios de la semana</h2></div></div>
+        <div id="change-list" class="change-list"><p class="subtle">Todavía no hiciste cambios.</p></div>
+      </section>
+    </section>
+
+    <section id="view-estudio" class="page hidden">
+      <section class="surface study-intro">
+        <p class="eyebrow">LABORATORIO PERSONAL</p><h2>La lupa de los números <span class="accent">🔎</span></h2>
+        <p>Investigá lo que salió entre los 20 premios. Las frecuencias describen el pasado: <strong>no son garantías para el próximo sorteo.</strong></p>
+        <button class="btn btn-secondary" id="load-history-data">↻ Consultar últimas 4 semanas</button>
+      </section>
+      <section class="surface">
+        <p class="eyebrow">HISTORIAL DESCARGADO</p><h2>Los más repetidos</h2>
+        <p class="subtle">Cuenta apariciones entre los 20 puestos, no solamente las cabezas.</p>
+        <div id="hot-list" class="stat-list"></div>
+      </section>
+      <section class="surface">
+        <p class="eyebrow">EN LA SEMANA ACTUAL</p><h2>Cómo vienen saliendo</h2>
+        <div id="week-frequency" class="stat-list"></div>
+      </section>
+    </section>
+
+    <section id="view-historial" class="page hidden">
+      <section class="surface">
+        <p class="eyebrow">TUS JUGADAS GUARDADAS</p><h2>Historial semanal</h2>
+        <p class="subtle">Aciertos, elecciones y cambios registrados en este teléfono.</p>
+        <div id="history-list" class="history-list"></div>
+      </section>
+    </section>
+  </main>
+
+  <nav class="bottom-nav" aria-label="Navegación principal">
+    <button class="tab active" data-page="tablero"><span class="tab-icon">▦</span><span>Mi Polla</span></button>
+    <button class="tab" data-page="estudio"><span class="tab-icon">◈</span><span>Estudio</span></button>
+    <button class="tab" data-page="historial"><span class="tab-icon">◷</span><span>Historial</span></button>
+  </nav>
+</div>
+
+<div id="modal-backdrop" class="modal-backdrop hidden" aria-hidden="true">
+  <section id="modal-panel" class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-header"><div><p class="eyebrow" id="modal-kicker">MI POLLA</p><h2 id="modal-title">Mis números</h2></div>
+      <button id="modal-close" class="icon-btn" aria-label="Cerrar">✕</button></div>
+    <div id="modal-body"></div>
+  </section>
+</div>
+<div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+
+<script src="./polla-core.js"></script>
+<script src="./app.js" defer></script>
+</body>
+</html>
