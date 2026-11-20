@@ -115,7 +115,7 @@ function roots(date:string){
  ...((monday<date&&days.includes(monday))?[{date:monday,period:'D−7' as const}]:[])];
 }
 type Candidate={n:string;family:string;rank:number;evidence?:string;source:'aux'|'integral'};
-function extractTop(date:string):{
+function extractTop(date:string,cut:'INICIO_SEMANA'|'ANTES_NOCTURNA'='ANTES_NOCTURNA'):{
  aux:Candidate[];integral:Candidate[];combined:string[];metadata:any
 }{
  const prev=previous(date),auxHead=auxSources.get(prev);
@@ -130,8 +130,13 @@ function extractTop(date:string):{
  });
  const seen=new Set<string>();
  const histUnique=hist.filter(h=>!seen.has(h.date)&&seen.add(h.date));
- const today=buildSheet(heads(date,true),prevNoctByJur(date));
+ // Al elegir los 10 ANTES del lunes, ninguna cabeza del lunes está disponible.
+ // Los cambios opcionales sí pueden estudiar la jornada en curso antes de Nocturna.
+ const current=cut==='INICIO_SEMANA'?diaVacio():heads(date,true);
+ const today=buildSheet(current,prevNoctByJur(date));
  if(today.heads.Nocturno.length)throw Error('Fuga temporal en el PRE');
+ if(cut==='INICIO_SEMANA'&&TURNOS.some(t=>today.heads[t].length))
+  throw Error('Fuga temporal: un resultado del lunes entró en la selección inicial');
  const aux=buildMotorLaloAuxiliar(date,'Nocturno',auxHead!,hist);
  const integralHist:IntegralPast[]=histUnique.map(h=>({
   date:h.date,period:h.period,plus11:sheet(h.date),aux:h.aux
@@ -159,6 +164,7 @@ function extractTop(date:string):{
  return {aux:auxItems,integral:integralItems,
   combined:integral.ranks[2].slice(0,12).map(f=>f.family),
   metadata:{
+   cut,selectionMoment:cut==='INICIO_SEMANA'?'ANTES_DE_COMENZAR_EL_LUNES':'ANTES_DE_NOCTURNA',
    previousDraw:prev,auxBase:prev,history:hist.map(h=>({
     day:h.date,root:h.period,sourceDate:h.sourceDate
    })),
@@ -171,13 +177,25 @@ function ten(list:Candidate[]):string[]{
  return [...new Set(list.map(x=>x.n))].slice(0,10);
 }
 const cache=new Map<string,ReturnType<typeof extractTop>>();
-function readModel(date:string){
- if(!cache.has(date))cache.set(date,extractTop(date));
- return cache.get(date)!;
+function readModel(date:string,cut:'INICIO_SEMANA'|'ANTES_NOCTURNA'='ANTES_NOCTURNA'){
+ const key=date+'|'+cut;
+ if(!cache.has(key))cache.set(key,extractTop(date,cut));
+ return cache.get(key)!;
 }
-function evaluateFixed(days:string[],candidate:(date:string)=>string[]){
+function initialTen(date:string){
+ const model=readModel(date,'INICIO_SEMANA');
+ // Integral primero. AUX únicamente completa casilleros si no alcanza a dar 10.
+ const primary=ten(model.integral),supplement=ten(model.aux);
+ const merged=[...new Set([...primary,...supplement])].slice(0,10);
+ if(merged.length!==10)
+  throw Error('No hay diez números respaldados ANTES del lunes: '+merged.length);
+ return {numbers:merged,integralUsed:merged.filter(n=>primary.includes(n)).length,
+  auxUsed:merged.filter(n=>!primary.includes(n)).length,metadata:model.metadata};
+}
+function evaluateFixed(days:string[],method:'PRINCIPAL'|'AUX_FIJO'='PRINCIPAL'){
  if(!days.length)return null;
- const set=ten(readModel(days[0]).integral);
+ const selection=initialTen(days[0]);
+ const set=method==='PRINCIPAL'?selection.numbers:ten(readModel(days[0],'INICIO_SEMANA').aux);
  if(set.length!==10)throw Error('No se obtuvieron 10 cifras iniciales');
  const hit=new Set<string>(),detail:any[]=[];
  for(const date of days){
@@ -187,7 +205,8 @@ function evaluateFixed(days:string[],candidate:(date:string)=>string[]){
   fresh.forEach(x=>hit.add(x));
   detail.push({date,chosen:set,newHits:fresh,accumulated:hit.size});
  }
- return {count:hit.size,detail,initial:set};
+ return {count:hit.size,detail,initial:set,
+  madeBeforeMonday:true,method,initialConstruction:method==='PRINCIPAL'?selection:null};
 }
 function evaluateDynamic(days:string[]){
  const hit=new Set<string>(),detail:any[]=[];
@@ -211,10 +230,12 @@ function evaluateDynamic(days:string[]){
   schema:'MI_POLLA_MOTOR_RESEARCH_V1',
   nextWeek:WEEK,
   cutoffSource:CUT_REQUIRED,
-  basedOn:'Motor auxiliar diversificado (cambios) + Integral dos hojas (fijo)',
+  basedOn:'DIEZ FIJOS (principal). Integral doble respaldo con complemento AUX previo a lunes.',
   policy:{
-   initial:'Integral dos hojas con familias ordenadas; no mezclar arbitrariamente con AUX',
-   swaps:'Solo se estudia AUX diversificado, con aciertos asegurados y cambios previos al sorteo',
+   priority:'DIEZ_INICIALES_FIJOS_LUNES_A_VIERNES',
+   initial:'Integral dos hojas, luego AUX solo para completar hasta 10 si hace falta. Todo con corte PRE lunes.',
+   secondary:'Cambios MANUALES, opcionales, nunca automáticos. No recomendar mover un pendiente por defecto.',
+   optionalControl:'AUX diversificado con cambios diarios solamente como comparación retrospectiva.',
    status:'EXPERIMENTAL, NO PROBADO',
   },
   sourceRevision:execFileSync('git',['rev-parse','HEAD'],{cwd:path.resolve(ROOT,'../..'),encoding:'utf8'}).trim(),
@@ -223,8 +244,9 @@ function evaluateDynamic(days:string[]){
   historical:{
    weeklyNights:recent,
    partialOnly:recent.length!==5,
-   fixed:recent.length?evaluateFixed(recent,()=>[]):null,
-   dynamic:recent.length?evaluateDynamic(recent):null,
+   fixedPrimary:recent.length?evaluateFixed(recent,'PRINCIPAL'):null,
+   fixedAuxComparison:recent.length?evaluateFixed(recent,'AUX_FIJO'):null,
+   dynamicOptionalComparison:recent.length?evaluateDynamic(recent):null,
   },
   next:{
    status:'PENDIENTE_NOCTURNA_VIERNES',
@@ -236,14 +258,17 @@ function evaluateDynamic(days:string[]){
  };
  if(city20(CUT_REQUIRED).length===20){
   try{
-   const mon=readModel(WEEK);
-   const initial=ten(mon.integral),second=ten(mon.aux);
+   const selection=initialTen(WEEK);
+   const mon=readModel(WEEK,'INICIO_SEMANA');
+   const initial=selection.numbers,second=ten(mon.aux);
    if(initial.length===10&&second.length===10){
-    report.next={status:'BORRADOR_PRELIMINAR',ready:true,
+    report.next={status:'BORRADOR_PRELIMINAR_PARA_MANTENER',ready:true,
+     mode:'FIJO_10',allowChanges:true,automaticChanges:false,
+     initialConstruction:selection,
      recommended10:initial,alternatives10:second,
      overlap:initial.filter(n=>second.includes(n)),
      detail:mon.metadata,
-     explain:'Generado antes de que existan Previa, Primera, Matutina y Vespertina del lunes. Revisar antes del cierre real de inscripciones.',
+     explain:'Generado sin ninguna cabeza del lunes. Estos diez se mantienen durante la semana; cambiar pendientes es una opción manual secundaria.',
      cutoffMessage:'Los diez números se pueden confirmar luego de verificar el corte real de inscripción.'
     };
    }else{
@@ -268,8 +293,9 @@ function evaluateDynamic(days:string[]){
  console.log('MOTOR PERSONAL — PRE DEL 23/11. Solo investigación.');
  console.log('AUX DISPONIBLE:',auxCount,'/',days.length,'fechas');
  console.log('CIUDAD VALIDADA:',recent.join(', '),'de 4 días posibles');
- console.log('CONTROL PARCIAL INTEGRAL:',report.historical.fixed?.count??'n/d');
- console.log('CONTROL PARCIAL AUX:',report.historical.dynamic?.count??'n/d');
+ console.log('CONTROL FIJO PRINCIPAL (selección antes del lunes):',report.historical.fixedPrimary?.count??'n/d');
+ console.log('CONTROL FIJO AUX (selección antes del lunes):',report.historical.fixedAuxComparison?.count??'n/d');
+ console.log('CONTROL AUX OPCIONAL con cambios:',report.historical.dynamicOptionalComparison?.count??'n/d');
  console.log('SEMANA 23/11:',report.next.status,JSON.stringify(report.next.recommended10));
  console.log('REPORTE: research/salidas/motor-semanal-23nov.json');
 })().catch(e=>{console.error(e);process.exitCode=1});
