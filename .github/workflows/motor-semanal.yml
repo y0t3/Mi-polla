@@ -1,0 +1,37 @@
+name: Laboratorio - motor semanal Mi Polla
+on:
+  push:
+    branches:
+      - research/motor-semana-23nov2026
+    paths:
+      - 'research/selector-semanal.ts'
+      - '.github/workflows/motor-semanal.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  preparar:
+    name: Probar motor semanal sin sorteos futuros
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Recuperar algoritmos de investigación existentes
+        run: |
+          git clone --depth=1 --branch feature/redisenio-navegacion-lalo-18nov2026 https://github.com/y0t3/Modelo-Papa.git research/_modelo
+          cd research/_modelo
+          test "$(git rev-parse HEAD)" = "5bc0c45be1726c80a9b07ab3b404b3bf48fa6a4c"
+      - name: Obtener historial de quiniela de los 20 premios
+        run: git clone --depth=1 https://github.com/nfgalindez-aiko/sorteos-ar.git /tmp/sorteos-ar
+      - name: Ejecutar preparación con cortes temporales
+        run: npx --yes tsx research/selector-semanal.ts
+      - name: Conservar informe verificable
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Motor-Semanal-Polla-23nov
+          path: research/salidas/motor-semanal-23nov.json
+          if-no-files-found: warn
