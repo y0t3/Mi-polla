@@ -9,6 +9,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import {createHash} from 'node:crypto';
+import {execFileSync} from 'node:child_process';
 import {buildSheet} from './_modelo/src/sheet';
 import {buildMotorLaloAuxiliar,extractAuxiliarHistory} from './_modelo/src/motorLaloAuxiliar';
 import {buildMotorLaloIntegral} from './_modelo/src/motorLaloIntegral';
@@ -216,7 +217,7 @@ function evaluateDynamic(days:string[]){
    swaps:'Solo se estudia AUX diversificado, con aciertos asegurados y cambios previos al sorteo',
    status:'EXPERIMENTAL, NO PROBADO',
   },
-  sourceSHA:fs.existsSync(path.join(ROOT,'latest.json'))?'fuente remota Sorteos AR':'no disponible',
+  sourceRevision:execFileSync('git',['rev-parse','HEAD'],{cwd:path.resolve(ROOT,'../..'),encoding:'utf8'}).trim(),
   modelCommit:MODEL_SHA,
   auxLoaded:auxCount,auxErrors,
   historical:{
@@ -250,11 +251,17 @@ function evaluateDynamic(days:string[]){
    }
   }catch(e){report.next.status='ERROR_DE_FUENTES';report.next.error=String(e)}
  }
+ if(city20(CUT_REQUIRED).length===0&&report.next.recommended10!==null)
+  throw Error('Nunca publicar números del 23/11 antes de validar la nocturna del 20/11');
  const now=new Date();
  report.createdAt=now.toISOString();
  report.currentCityDates=days.slice(-6);
+ const auxSnapshot=Object.fromEntries([...auxSources].sort(([a],[b])=>a.localeCompare(b)));
+ report.auxiliarySHA256=createHash('sha256')
+   .update(JSON.stringify(auxSnapshot)).digest('hex');
  report.sourceDigest=createHash('sha256').update(JSON.stringify({
-  dates:days.slice(-6),aux:auxCount,city:recent.map(d=>city20(d))
+  dates:days.slice(-6),city:recent.map(d=>({day:d,positions:city20(d)})),
+  auxiliarySHA256:report.auxiliarySHA256
  })).digest('hex');
  fs.mkdirSync('research/salidas',{recursive:true});
  fs.writeFileSync('research/salidas/motor-semanal-23nov.json',JSON.stringify(report,null,2)+'\n');
