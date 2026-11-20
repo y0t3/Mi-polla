@@ -226,6 +226,31 @@ function evaluateDynamic(days:string[]){
  const auxCount=await readAux();
  const available=dates.filter(d=>d>='2026-11-16'&&d<='2026-11-19');
  const recent=available.filter(d=>city20(d).length===20);
+ const historicalWeeks=[...new Set(dates.filter(d=>d>='2026-09-14'&&d<='2026-11-13')
+  .map(weekMonday))].map(w=>({week:w,days:days.filter(d=>weekMonday(d)===w&&
+  [1,2,3,4,5].includes(new Date(d+'T12:00:00Z').getUTCDay()))}))
+  .filter(w=>w.days.length===5&&w.days.every(d=>city20(d).length===20));
+ const backtest:any={weeks:[],excluded:[]};
+ for(const {week,days:weekDays} of historicalWeeks){
+  try{
+   const principal=evaluateFixed(weekDays,'PRINCIPAL');
+   const auxFijo=evaluateFixed(weekDays,'AUX_FIJO');
+   const auxOpcional=evaluateDynamic(weekDays);
+   backtest.weeks.push({week,principal:principal.count,auxFijo:auxFijo.count,
+    auxOpcional:auxOpcional.count,initialPrincipal:principal.initial,
+    initialAux:auxFijo.initial,construction:principal.initialConstruction});
+  }catch(e){backtest.excluded.push({week,error:String(e)})}
+ }
+ const summary=(key:'principal'|'auxFijo'|'auxOpcional')=>{
+  const xs=backtest.weeks.map((x:any)=>x[key]);
+  return {sample:xs.length,total:xs.reduce((a:number,b:number)=>a+b,0),
+   average:xs.length?Number((xs.reduce((a:number,b:number)=>a+b,0)/xs.length).toFixed(3)):null,
+   reached8:xs.filter((n:number)=>n>=8).length,
+   reached9:xs.filter((n:number)=>n>=9).length,
+   reached10:xs.filter((n:number)=>n===10).length};
+ };
+ backtest.summary={principal:summary('principal'),auxFijo:summary('auxFijo'),
+  auxOpcional:summary('auxOpcional')};
  const report:any={
   schema:'MI_POLLA_MOTOR_RESEARCH_V1',
   nextWeek:WEEK,
@@ -242,6 +267,7 @@ function evaluateDynamic(days:string[]){
   modelCommit:MODEL_SHA,
   auxLoaded:auxCount,auxErrors,
   historical:{
+   backtest,
    weeklyNights:recent,
    partialOnly:recent.length!==5,
    fixedPrimary:recent.length?evaluateFixed(recent,'PRINCIPAL'):null,
@@ -296,6 +322,9 @@ function evaluateDynamic(days:string[]){
  console.log('CONTROL FIJO PRINCIPAL (selección antes del lunes):',report.historical.fixedPrimary?.count??'n/d');
  console.log('CONTROL FIJO AUX (selección antes del lunes):',report.historical.fixedAuxComparison?.count??'n/d');
  console.log('CONTROL AUX OPCIONAL con cambios:',report.historical.dynamicOptionalComparison?.count??'n/d');
+ console.log('OCHO SEMANAS PRE-LUNES:',JSON.stringify(backtest.summary));
+ console.log('SEMANAS INCLUIDAS:',backtest.weeks.map((x:any)=>x.week).join(','));
+ console.log('SEMANAS OMITIDAS:',JSON.stringify(backtest.excluded));
  console.log('SEMANA 23/11:',report.next.status,JSON.stringify(report.next.recommended10));
  console.log('REPORTE: research/salidas/motor-semanal-23nov.json');
 })().catch(e=>{console.error(e);process.exitCode=1});
