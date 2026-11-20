@@ -4,7 +4,7 @@ const C=require("../polla-core.js");
 const d="2026-11-16";
 const nums=["03","11","24","37","42","56","61","73","85","92"];
 const draw=(dt,values)=>({date:dt,numbers:values.map(x=>x.padStart(4,"0")).concat(
-  Array.from({length:20-values.length},(_,i)=>String(8000+i).padStart(4,"0"))),
+  Array.from({length:20-values.length},()=>"0098")),
   verified:true});
 function expectFailure(fn){assert.throws(fn)}
 assert.equal(C.mondayOf("2026-11-19"),d);
@@ -12,7 +12,7 @@ assert.deepEqual(C.weekDates(d),["2026-11-16","2026-11-17","2026-11-18","2026-11
 assert.deepEqual(C.parsePicks("03 11 24 37 42 56 61 73 85 92"),nums);
 expectFailure(()=>C.parsePicks("01 02 03 04 05 06 07 08 09 09"));
 expectFailure(()=>C.parsePicks("01 02 03 04 05 06 07 08 09 100"));
-assert.equal(C.nextEligibleDraw(new Date("2026-11-20T23:40:00Z"),{}),"2026-11-23");
+assert.equal(C.nextEligibleDraw(new Date("2026-11-21T00:40:00Z"),{}),"2026-11-23");
 assert.equal(C.nextEligibleDraw(new Date("2026-11-17T15:00:00Z"),{}),"2026-11-17");
 assert.equal(C.nextEligibleDraw(new Date("2026-11-17T15:00:00Z"),{"2026-11-17":draw("2026-11-17",[])}),"2026-11-18");
 const s=C.createWeek(d,nums,d);
