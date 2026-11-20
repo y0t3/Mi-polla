@@ -18,7 +18,7 @@ android {
     signingConfigs {
         release {
             if (System.getenv("MI_POLLA_KEYSTORE_FILE")) {
-                storeFile file(System.getenv("MI_POLLA_KEYSTORE_FILE"))
+                storeFile rootProject.file(System.getenv("MI_POLLA_KEYSTORE_FILE"))
                 storePassword System.getenv("MI_POLLA_STORE_PASSWORD")
                 keyAlias System.getenv("MI_POLLA_KEY_ALIAS")
                 keyPassword System.getenv("MI_POLLA_KEY_PASSWORD")
