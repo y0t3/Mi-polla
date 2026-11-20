@@ -82,7 +82,7 @@ function render(){
  $("change-list").innerHTML=r&&r.changes.length?
   r.changes.map(ch=>'<div class="change-item"><span class="swap">⇄</span><div><strong>'+
   html(ch.from)+' → '+html(ch.to)+'</strong><small>Cuenta desde '+html(C.dayLabel(ch.effectiveDate))+
-  ' '+html(presentDate(ch.effectiveDate))+' · registrado '+html(ch.at.slice(0,16).replace("T"," "))+' UTC</small></div></div>').join(""):
+  ' '+html(presentDate(ch.effectiveDate))+' · registrado '+html(new Date(ch.at).toLocaleString("es-AR",{timeZone:"America/Argentina/Buenos_Aires",day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}))+'</small></div></div>').join(""):
   '<p class="subtle">Todavía no hiciste cambios. Los aciertos confirmados quedan fijos.</p>';
  renderDays(dates,calc);
  renderHistory();
