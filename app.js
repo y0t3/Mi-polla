@@ -351,6 +351,11 @@ $("history-list").addEventListener("click",e=>{
 if("serviceWorker" in navigator&&location.protocol==="https:"&&location.hostname!=="appassets.androidplatform.net"){
  navigator.serviceWorker.register("./service-worker.js").catch(()=>{});
 }
+window.miPollaBack=function(){
+ if(!$("modal-backdrop").classList.contains("hidden")){closeModal();return true;}
+ if(page!=="tablero"){switchPage("tablero");return true;}
+ return false;
+};
 render();
 fetchWeek(selectedWeek);
 })();
