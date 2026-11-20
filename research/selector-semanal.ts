@@ -244,6 +244,7 @@ function evaluateDynamic(days:string[]){
      detail:mon.metadata,
      explain:'Generado antes de que existan Previa, Primera, Matutina y Vespertina del lunes. Revisar antes del cierre real de inscripciones.',
      cutoffMessage:'Los diez números se pueden confirmar luego de verificar el corte real de inscripción.'
+    };
    }else{
     report.next.status='SIN_DIEZ_CANDIDATOS_RESPALDADOS';
    }
