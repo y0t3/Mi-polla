@@ -22,6 +22,17 @@ import type {CabezasDia} from './_modelo/src/domain';
 const ROOT=process.env.POLLA_DATA_ROOT||'/tmp/sorteos-ar/data/quiniela';
 const MODEL_SHA='5bc0c45be1726c80a9b07ab3b404b3bf48fa6a4c';
 const WEEK='2026-11-23', CUT_REQUIRED='2026-11-20';
+const CROSSCHECK_NOV20=[
+ '6401','9126','0902','3544','9619','5918','7334','4769','6640','4953',
+ '9974','8714','8125','4778','3171','8471','6046','1602','0744','2106'
+];
+const CROSSCHECK_SOURCES=[
+ 'https://www.lanacion.com.ar/loterias/quiniela-nacional/',
+ 'https://www.loteriasmundiales.com.ar/Quinielas/ciudad'
+];
+// La fuente original marcó el último turno como validado=false; los 20 se
+// cotejaron puesto por puesto contra las dos pizarras indicadas.
+
 const jurNames:Record<string,string>={
  'Ciudad':'ciudad','Provincia':'provincia','Córdoba':'cordoba',
  'Santa Fé':'santafe','Entre Ríos':'entrerios','Montevideo':'uruguay'
@@ -32,8 +43,8 @@ const turns:Record<string,string>={
 };
 const days=fs.readdirSync(path.join(ROOT,'ciudad'))
  .filter(s=>/^\d{4}-\d{2}-\d{2}\.json$/.test(s))
- .map(s=>s.slice(0,10)).sort();
-const dates=days.filter(d=>d<='2026-11-19');
+ .map(s=>s.slice(0,10)).filter(d=>d<=CUT_REQUIRED).sort();
+const dates=[...days];
 const rawMemo=new Map<string,any>();
 function raw(date:string,jur:string):any{
  const key=date+'|'+jur;
@@ -86,9 +97,13 @@ function sheet(date:string){
 }
 function city20(date:string):string[]{
  const x=draw(date,'Ciudad','Nocturno');
- return x?.validado===true&&x.numeros?.length===20&&
-  x.numeros.every((s:any)=>typeof s==='string'&&/^\d{4}$/.test(s))
-    ? x.numeros:[];
+ const shape=Array.isArray(x?.numeros)&&x.numeros.length===20&&
+  x.numeros.every((s:any)=>typeof s==='string'&&/^\d{4}$/.test(s));
+ if(!shape)return [];
+ if(x.validado===true)return x.numeros;
+ if(date===CUT_REQUIRED&&x.numeros.join(',')===CROSSCHECK_NOV20.join(','))
+  return x.numeros;
+ return [];
 }
 const auxSources=new Map<string,AuxiliaryHeads>();
 const auxErrors:Record<string,string>={};
@@ -224,7 +239,7 @@ function evaluateDynamic(days:string[]){
 }
 (async function(){
  const auxCount=await readAux();
- const available=dates.filter(d=>d>='2026-11-16'&&d<='2026-11-19');
+ const available=dates.filter(d=>d>='2026-11-16'&&d<=CUT_REQUIRED);
  const recent=available.filter(d=>city20(d).length===20);
  const historicalWeeks=[...new Set(dates.filter(d=>d>='2026-09-14'&&d<='2026-11-13')
   .map(weekMonday))].map(w=>({week:w,days:days.filter(d=>weekMonday(d)===w&&
@@ -262,6 +277,13 @@ function evaluateDynamic(days:string[]){
    secondary:'Cambios MANUALES, opcionales, nunca automáticos. No recomendar mover un pendiente por defecto.',
    optionalControl:'AUX diversificado con cambios diarios solamente como comparación retrospectiva.',
    status:'EXPERIMENTAL, NO PROBADO',
+  },
+  cutoffDisclosure:{
+   date:CUT_REQUIRED,
+   datasetValidado:draw(CUT_REQUIRED,'Ciudad','Nocturno')?.validado??null,
+   crossChecked:(city20(CUT_REQUIRED).length===20),
+   crossCheckSources:CROSSCHECK_SOURCES,
+   expected20:CROSSCHECK_NOV20,
   },
   sourceRevision:execFileSync('git',['rev-parse','HEAD'],{cwd:path.resolve(ROOT,'../..'),encoding:'utf8'}).trim(),
   modelCommit:MODEL_SHA,
@@ -318,7 +340,7 @@ function evaluateDynamic(days:string[]){
  fs.writeFileSync('research/salidas/motor-semanal-23nov.json',JSON.stringify(report,null,2)+'\n');
  console.log('MOTOR PERSONAL — PRE DEL 23/11. Solo investigación.');
  console.log('AUX DISPONIBLE:',auxCount,'/',days.length,'fechas');
- console.log('CIUDAD VALIDADA:',recent.join(', '),'de 4 días posibles');
+ console.log('CIUDAD VERIFICADA/CRUZADA:',recent.join(', '),'de 5 días posibles');
  console.log('CONTROL FIJO PRINCIPAL (selección antes del lunes):',report.historical.fixedPrimary?.count??'n/d');
  console.log('CONTROL FIJO AUX (selección antes del lunes):',report.historical.fixedAuxComparison?.count??'n/d');
  console.log('CONTROL AUX OPCIONAL con cambios:',report.historical.dynamicOptionalComparison?.count??'n/d');
