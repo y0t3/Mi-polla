@@ -17,10 +17,13 @@ jobs:
       - name: Validar sintaxis JavaScript
         run: |
           node --check polla-core.js
+          node --check results-source.js
           node --check app.js
           node --check service-worker.js
       - name: Probar reglas (sin retroactividad, diez únicos, bloqueos)
-        run: node scripts/test-polla-core.cjs
+        run: |
+          node scripts/test-polla-core.cjs
+          node scripts/test-results-source.cjs
   android:
     name: Compilar APK de Mi Polla
     needs: probar
@@ -42,7 +45,7 @@ jobs:
       - name: Incorporar app offline al APK
         run: |
           mkdir -p android/app/src/main/assets/www/assets
-          cp index.html styles.css polla-core.js app.js manifest.webmanifest service-worker.js android/app/src/main/assets/www/
+          cp index.html styles.css polla-core.js results-source.js app.js manifest.webmanifest service-worker.js android/app/src/main/assets/www/
           cp assets/icon.svg android/app/src/main/assets/www/assets/
       - name: Compilar APK de prueba
         working-directory: android
