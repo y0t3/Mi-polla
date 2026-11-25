@@ -17,6 +17,7 @@ android {
     }
     signingConfigs {
         release {
+            resValue 'string', 'app_display_name', 'Mi Polla'
             if (System.getenv("MI_POLLA_KEYSTORE_FILE")) {
                 storeFile rootProject.file(System.getenv("MI_POLLA_KEYSTORE_FILE"))
                 storePassword System.getenv("MI_POLLA_STORE_PASSWORD")
@@ -28,6 +29,10 @@ android {
     buildTypes {
         debug {
             debuggable true
+            // La v0.1 tenía una firma efímera de depuración.
+            // Instalar en paralelo evita perder números e historial.
+            applicationIdSuffix '.nueva'
+            resValue 'string', 'app_display_name', 'Mi Polla nueva'
         }
         release {
             if (System.getenv("MI_POLLA_KEYSTORE_FILE")) signingConfig signingConfigs.release
