@@ -21,6 +21,23 @@ Se intenta leer `data/quiniela/ciudad/YYYY-MM-DD.json` del proyecto público [So
 
 Si la fuente no está disponible, desde Resultados se pueden cargar veinte premios manualmente; quedan identificados como no verificados.
 
+## Actualización de sorteos (v0.2.0 · 24/11/2026)
+
+**Corregido:** la app ahora consulta los veinte premios de Ciudad Nocturna mediante el archivo de Sorteos AR y, si está atrasado o no validado, consulta el GitHub Contents API para obtener la versión actual. Nunca cuenta resultados con menos de 20 puestos ni con `validado:false`. La información guardada se mantiene si una consulta falla.
+
+Se muestra la **hora de la última consulta** y un aviso diferenciado cuando el archivo aún no existe, está sin validar o falla la conexión. Mientras la app esté **abierta y en primer plano**, entre las 20:50 y las 23:45 (hora argentina), intenta de nuevo cada dos minutos si la nocturna de hoy sigue pendiente. Al regresar a la app también vuelve a comprobarla. **No funciona en segundo plano ni cuando la fuente todavía no publicó los datos**; la fuente externa puede seguir tardando después de las 21.
+
+### Migrar sin perder la jugada de la APK v0.1
+
+La primera APK fue firmada con una clave temporal de depuración, distinta de las posteriores. Por seguridad, la versión de prueba v0.2 se instala como **Mi Polla nueva**, un paquete independiente (`ar.mipolla.personal.nueva`) para **conservar la instalación anterior intacta**.
+
+1. Abrí **Mi Polla** anterior → ⚙ Ajustes → **Ver / copiar respaldo**. Copiá todo el JSON y guardalo en Notas o un mensaje personal, fuera de la app.
+2. Instalá **Mi Polla nueva**. Es otra app y no borra la anterior.
+3. En Mi Polla nueva → ⚙ Ajustes → **Importar respaldo**; pegá el JSON completo. Comprobá nombre, diez números y aciertos.
+4. Solo después de verificar todo, podés decidir si conservás ambas apps o desinstalás la anterior.
+
+**Nota:** también la APK paralela usa una clave temporal en las compilaciones de GitHub. Para actualizaciones futuras sin reinstalación, hace falta configurar la firma privada estable de release, como se explica más abajo.
+
 ## Compilar APK
 
 El repositorio usa HTML/CSS/JS offline empaquetado en una actividad Android WebView con `androidx.webkit.WebViewAssetLoader`. El proyecto Gradle está en `android/`.
