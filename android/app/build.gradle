@@ -17,7 +17,6 @@ android {
     }
     signingConfigs {
         release {
-            resValue 'string', 'app_display_name', 'Mi Polla'
             if (System.getenv("MI_POLLA_KEYSTORE_FILE")) {
                 storeFile rootProject.file(System.getenv("MI_POLLA_KEYSTORE_FILE"))
                 storePassword System.getenv("MI_POLLA_STORE_PASSWORD")
@@ -35,6 +34,7 @@ android {
             resValue 'string', 'app_display_name', 'Mi Polla nueva'
         }
         release {
+            resValue 'string', 'app_display_name', 'Mi Polla'
             if (System.getenv("MI_POLLA_KEYSTORE_FILE")) signingConfig signingConfigs.release
             minifyEnabled false
         }
