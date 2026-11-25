@@ -2,8 +2,8 @@
 (function(){
 "use strict";
 const C=window.PollaCore;
+const R=window.PollaResults;
 const STORAGE="mi-polla-state-v1";
-const API="https://raw.githubusercontent.com/nfgalindez-aiko/sorteos-ar/main/data/quiniela/ciudad/";
 const weekdays=["Lun","Mar","Mié","Jue","Vie"];
 const pad=(n)=>String(n).padStart(2,"0");
 const html=(v)=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -284,35 +284,80 @@ function switchPage(next){
  document.querySelectorAll(".tab").forEach(el=>el.classList.toggle("active",el.dataset.page===next));
  window.scrollTo({top:0,behavior:"instant"});
 }
+let lastRefreshStarted=0;
 async function fetchWeek(week,force=false){
  if(fetchBusy)return;
- fetchBusy=true;$("refresh-results").disabled=true;
+ fetchBusy=true;
+ lastRefreshStarted=Date.now();
+ $("refresh-results").disabled=true;
  $("source-note").classList.remove("error");
- $("source-note").textContent="Buscando los 20 premios de cada Nocturna…";
- let loaded=0,notFound=0,errors=0,unvalidated=0;
+ $("source-note").textContent="Buscando los 20 premios de Ciudad Nocturna…";
  const ds=C.weekDates(week);
- await Promise.all(ds.map(async date=>{
-  if(!force&&state.draws[date]?.verified){loaded++;return}
-  if(date>C.argNow().date)return;
-  try{
-   const response=await fetch(API+date+".json?ref="+Date.now(),{cache:"no-store"});
-   if(response.status===404){notFound++;return}
-   if(!response.ok){errors++;return}
-   const data=await response.json();
-   try{
-    const draw=C.normalizeDraw(data,date);
-    state.draws[date]=draw;loaded++;
-   }catch(e){unvalidated++;}
-  }catch(e){errors++;}
- }));
- save();fetchBusy=false;$("refresh-results").disabled=false;
- $("source-note").textContent="Fuente secundaria: Sorteos AR · "+loaded+" noches disponibles"+
-  (unvalidated?" · "+unvalidated+" sin validación":"")+
-  (errors?" · "+errors+" errores de conexión":"")+
-  ". Contrastá los resultados con el extracto oficial.";
- $("source-note").classList.toggle("error",errors>0||unvalidated>0);
+ const now=C.argNow();
+ const results=[];
+ const newDates=[];
+ try{
+  await Promise.all(ds.map(async date=>{
+   if(date>now.date)return;
+   if(!force&&state.draws[date]?.verified){
+    results.push({status:"cached",date});return;
+   }
+   const result=await R.loadNocturna(date,C);
+   results.push(result);
+   if(result.status==="ready"){
+    const prev=state.draws[date];
+    const different=!prev||prev.numbers.join("|")!==result.draw.numbers.join("|");
+    state.draws[date]=result.draw;
+    if(different)newDates.push(date);
+   }
+  }));
+  save();
+ }finally{
+  fetchBusy=false;
+  $("refresh-results").disabled=false;
+ }
+ const total=ds.filter(d=>state.draws[d]?.numbers?.length===20).length;
+ const pending=results.filter(r=>r.status==="pending");
+ const problems=results.filter(r=>r.status==="error"||r.status==="invalid");
+ const notFound=results.filter(r=>r.status==="not_found");
+ const apiUsed=results.filter(r=>r.channel==="consulta alternativa");
+ const label="Última consulta "+R.formatTimestamp()+" · "+total+"/5 nocturnas cargadas";
+ const info=[
+  label,
+  apiUsed.length?"Se recuperaron "+apiUsed.length+" noche(s) por la vía alternativa.":"",
+  pending.length?"Sin confirmar: "+pending.map(r=>C.dayLabel(r.date)+" "+r.date.slice(-2)).join(", ")+".":"",
+  notFound.length?"Sin archivo todavía: "+notFound.map(r=>C.dayLabel(r.date)).join(", ")+".":"",
+  problems.length?"Error al consultar "+problems.length+" noche(s). Revisá la conexión.":"",
+  "Fuente secundaria: Sorteos AR. Contrastá los premios con el extracto oficial."
+ ];
+ $("source-note").textContent=info.filter(Boolean).join(" · ");
+ $("source-note").classList.toggle("error",problems.length>0||pending.length>0);
+ if(newDates.includes(now.date)&&week===selectedWeek){
+  selectedDay=now.date;
+  toast("¡Llegaron los 20 premios de la Nocturna de hoy!");
+ }
  render();
 }
+/** Solo vuelve a buscar cuando la app está abierta y hay una nocturna pendiente. */
+function shouldAutoRefresh(){
+ if(fetchBusy||document.hidden)return false;
+ if(page!=="tablero")return false;
+ const local=C.argNow();
+ if(!["1","2","3","4","5"].includes(String(new Date(local.date+"T12:00:00Z").getUTCDay())))return false;
+ if(selectedWeek!==C.mondayOf(local.date))return false;
+ if(local.time<"20:50"||local.time>"23:45")return false;
+ if(state.draws[local.date]?.verified)return false;
+ if(Date.now()-lastRefreshStarted<85000)return false;
+ return true;
+}
+function autoRefresh(){
+ if(shouldAutoRefresh())fetchWeek(selectedWeek);
+}
+setInterval(autoRefresh,120000);
+document.addEventListener("visibilitychange",()=>{
+ if(!document.hidden)autoRefresh();
+});
+window.addEventListener("focus",autoRefresh);
 async function fetchMore(){
  if(fetchBusy)return;
  const original=selectedWeek,dates=Array.from({length:4},(_,i)=>C.offsetDate(original,-7*i));
